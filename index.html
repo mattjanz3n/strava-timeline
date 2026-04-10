@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Strava Timeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --grid: rgba(148, 163, 184, 0.18);
+      --accent: #f97316;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+    }
+    header {
+      padding: 20px 24px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(10px);
+      background: rgba(2, 6, 23, 0.82);
+      z-index: 10;
+    }
+    h1 {
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .sub {
+      color: var(--muted);
+      max-width: 900px;
+      line-height: 1.4;
+    }
+    .toolbar {
+      margin-top: 14px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .pill {
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: calc(100vh - 110px);
+    }
+    aside {
+      border-right: 1px solid rgba(255,255,255,0.08);
+      padding: 18px;
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .legend-item {
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      box-shadow: 0 0 18px currentColor;
+    }
+    .stats {
+      margin-top: 24px;
+      display: grid;
+      gap: 12px;
+    }
+    .stat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .timeline-wrap {
+      overflow-x: auto;
+      overflow-y: auto;
+      padding: 24px;
+      position: relative;
+      perspective: 1600px;
+      perspective-origin: center center;
+    }
+    #timeline {
+      display: block;
+      min-height: 100%;
+      transform-style: preserve-3d;
+      filter: drop-shadow(0 24px 30px rgba(0,0,0,.28));
+    }
+    .hint {
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(17,24,39,0.96);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      max-width: 300px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.38);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity .12s ease, transform .12s ease;
+      z-index: 1000;
+    }
+    .tooltip.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .tooltip .title { font-weight: 700; margin-bottom: 4px; }
+    .tooltip .muted { color: #cbd5e1; }
+    .tooltip .preview {
+      display: block;
+      width: 100%;
+      max-width: 276px;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin: 0 0 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+      background: rgba(255,255,255,0.04);
+    }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Strava Activity Timeline</h1>
+    <div class="sub">A scrollable timeline of every Strava activity from your first logged event to today. Each activity type gets its own track and color. Dot size reflects session length. Photo icon means the activity has at least one image attached.</div>
+    <div class="toolbar">
+      <div class="pill" id="rangePill">Loading timeline…</div>
+      <div class="pill" id="countPill">Fetching activities…</div>
+      <div class="pill">Hover a line to highlight it</div>
+      <div class="pill">Scroll sideways to time travel</div>
+      <label class="pill">Rotation speed <input id="rotationSlider" type="range" min="-30" max="30" value="4" style="width:140px; vertical-align:middle; margin-left:8px;"></label>
+      <label class="pill">Zoom <input id="zoomSlider" type="range" min="60" max="220" value="100" style="width:140px; vertical-align:middle; margin-left:8px;"></label>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside>
+      <h3>Legend</h3>
+      <div id="legend"></div>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Activities</div><div class="stat-value" id="activityCount">—</div></div>
+        <div class="stat"><div class="stat-label">Activity Types</div><div class="stat-value" id="typeCount">—</div></div>
+        <div class="stat"><div class="stat-label">First Activity</div><div class="stat-value" id="firstDate">—</div></div>
+      </div>
+      <div class="hint">Data loads from a local export bundled right into the page load flow, so it works even when you open the file directly from disk. No browser token needed.</div>
+    </aside>
+
+    <main class="timeline-wrap" id="scroller">
+      <svg id="timeline" width="1600" height="800" aria-label="Strava timeline visualization"></svg>
+    </main>
+  </div>
+
+  <div id="tooltip" class="tooltip"></div>
+
+  <script src="./activities.js"></script>
+  <script>
+    const scroller = document.getElementById('scroller');
+    const svg = document.getElementById('timeline');
+    const tooltip = document.getElementById('tooltip');
+    const legendEl = document.getElementById('legend');
+    const rotationSlider = document.getElementById('rotationSlider');
+    const zoomSlider = document.getElementById('zoomSlider');
+    const colors = ['#1F70C1','#00A6A0','#8A3FFC','#FA4D56','#FF832B','#198038','#6929C4','#1192E8','#EE538B','#B28600'];
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    function formatDuration(seconds) {
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.round((seconds % 3600) / 60);
+      if (hrs) return `${hrs}h ${mins}m`;
+      return `${mins}m`;
+    }
+
+    async function fetchActivities() {
+      const activities = window.STRAVA_ACTIVITIES || [];
+      if (!activities.length) throw new Error('Could not load embedded Strava activities data');
+      return activities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+    }
+
+    function tooltipPosition(event) {
+      const pad = 16;
+      const left = Math.min(event.clientX + 14, window.innerWidth - tooltip.offsetWidth - pad);
+      const top = Math.min(event.clientY + 14, window.innerHeight - tooltip.offsetHeight - pad);
+      tooltip.style.left = `${Math.max(pad, left)}px`;
+      tooltip.style.top = `${Math.max(pad, top)}px`;
+    }
+
+    function showTooltip(event, activity) {
+      const previewUrl = activity.photoPreviewUrl || activity.photoThumbUrl;
+      tooltip.innerHTML = `
+        ${previewUrl ? `<img class="preview" src="${previewUrl}" alt="Photo from ${activity.name || activity.sport_type}" loading="lazy">` : ''}
+        <div class="title">${activity.name || activity.sport_type}</div>
+        <div class="muted">${activity.sport_type || activity.type} • ${formatDate(activity.start_date)}</div>
+        <div>${formatDuration(activity.moving_time || activity.elapsed_time || 0)}${activity.distance ? ` • ${(activity.distance / 1000).toFixed(1)} km` : ''}</div>
+        <div>${activity.hasPhoto ? `📷 ${activity.photoCount || activity.total_photo_count || 1} photo${(activity.photoCount || activity.total_photo_count || 1) === 1 ? '' : 's'}` : 'No photo detected'}</div>
+      `;
+      tooltip.classList.add('show');
+      tooltipPosition(event);
+    }
+    function hideTooltip() { tooltip.classList.remove('show'); }
+
+    let cachedActivities = [];
+    let currentRotation = 0;
+    let currentZoom = 1;
+    let rotationSpeed = 4;
+    let animationHandle = null;
+    let lastFrameTime = 0;
+    let pauseRotation = false;
+    let hasInitialPosition = false;
+    let helixOrigin = { x: 0, y: 0 };
+
+    function clampScroll() {
+      scroller.scrollLeft = Math.max(0, Math.min(scroller.scrollLeft, scroller.scrollWidth - scroller.clientWidth));
+      scroller.scrollTop = Math.max(0, Math.min(scroller.scrollTop, scroller.scrollHeight - scroller.clientHeight));
+    }
+
+    function applyZoom({ preserveViewportCenter = true } = {}) {
+      const oldZoom = Number(svg.dataset.zoom || 1);
+      const centerX = (scroller.scrollLeft + scroller.clientWidth / 2 + helixOrigin.x * (oldZoom - 1)) / oldZoom;
+      const centerY = (scroller.scrollTop + scroller.clientHeight / 2 + helixOrigin.y * (oldZoom - 1)) / oldZoom;
+
+      svg.style.transformOrigin = `${helixOrigin.x}px ${helixOrigin.y}px`;
+      svg.style.transform = `translate(${-helixOrigin.x * (currentZoom - 1)}px, ${-helixOrigin.y * (currentZoom - 1)}px) scale(${currentZoom})`;
+      svg.dataset.zoom = String(currentZoom);
+
+      if (preserveViewportCenter) {
+        scroller.scrollLeft = centerX * currentZoom - helixOrigin.x * (currentZoom - 1) - scroller.clientWidth / 2;
+        scroller.scrollTop = centerY * currentZoom - helixOrigin.y * (currentZoom - 1) - scroller.clientHeight / 2;
+        clampScroll();
+      }
+    }
+
+    function centerLatestActivity(timelineWidth, centerY) {
+      scroller.scrollLeft = Math.max(0, timelineWidth - scroller.clientWidth * 0.55);
+      scroller.scrollTop = Math.max(0, centerY * currentZoom - helixOrigin.y * (currentZoom - 1) - scroller.clientHeight / 2);
+      clampScroll();
+    }
+
+    function render(activities) {
+      cachedActivities = activities;
+      const types = [...new Set(activities.map(a => a.sport_type || a.type || 'Other'))];
+      const colorByType = Object.fromEntries(types.map((type, i) => [type, colors[i % colors.length]]));
+      const firstDate = new Date(activities[0].start_date);
+      const lastDate = new Date();
+      const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
+      const rowHeight = 90;
+      const leftPad = 140;
+      const rightPad = 90;
+      const topPad = 70;
+      const dayScale = 2.5;
+      const timelineWidth = Math.max(1800, totalDays * dayScale + leftPad + rightPad);
+      const timelineHeight = topPad + types.length * rowHeight + 90;
+      const centerY = Math.max(170, topPad + 120);
+      svg.setAttribute('width', timelineWidth);
+      svg.setAttribute('height', timelineHeight);
+      helixOrigin = {
+        x: leftPad + (timelineWidth - leftPad - rightPad) / 2,
+        y: centerY
+      };
+      svg.innerHTML = '';
+
+      document.getElementById('rangePill').textContent = `${formatDate(activities[0].start_date)} → ${formatDate(lastDate.toISOString())}`;
+      document.getElementById('countPill').textContent = `${activities.length} activities loaded`;
+      document.getElementById('activityCount').textContent = activities.length.toLocaleString();
+      document.getElementById('typeCount').textContent = types.length;
+      document.getElementById('firstDate').textContent = formatDate(activities[0].start_date);
+
+      legendEl.innerHTML = types.map(type => `
+        <div class="legend-item"><span class="swatch" style="background:${colorByType[type]}; color:${colorByType[type]}"></span>${type}</div>
+      `).join('');
+
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bg.setAttribute('x', 0);
+      bg.setAttribute('y', 0);
+      bg.setAttribute('width', timelineWidth);
+      bg.setAttribute('height', timelineHeight);
+      bg.setAttribute('fill', 'transparent');
+      svg.appendChild(bg);
+
+      const monthCursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+      while (monthCursor <= lastDate) {
+        const x = leftPad + ((monthCursor - firstDate) / 86400000) * dayScale;
+        const monthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        monthLine.setAttribute('x1', x);
+        monthLine.setAttribute('x2', x);
+        monthLine.setAttribute('y1', 20);
+        monthLine.setAttribute('y2', timelineHeight - 30);
+        monthLine.setAttribute('stroke', 'rgba(148,163,184,0.22)');
+        monthLine.setAttribute('stroke-width', '1');
+        monthLine.setAttribute('stroke-dasharray', '4 8');
+        svg.appendChild(monthLine);
+
+        const monthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        monthLabel.setAttribute('x', x + 6);
+        monthLabel.setAttribute('y', 34);
+        monthLabel.setAttribute('fill', '#94a3b8');
+        monthLabel.setAttribute('font-size', '11');
+        monthLabel.textContent = monthCursor.toLocaleDateString(undefined, { month: 'short', year: monthCursor.getMonth() === 0 ? 'numeric' : undefined });
+        svg.appendChild(monthLabel);
+
+        monthCursor.setMonth(monthCursor.getMonth() + 1);
+      }
+
+      const corkRadius = Math.min(140, 34 + types.length * 9);
+      const helixPitch = 185;
+      const rotationOffset = currentRotation * Math.PI / 180;
+      const laneMeta = {};
+
+      const spine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      spine.setAttribute('x1', leftPad);
+      spine.setAttribute('x2', timelineWidth - rightPad);
+      spine.setAttribute('y1', centerY);
+      spine.setAttribute('y2', centerY);
+      spine.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+      spine.setAttribute('stroke-width', '2');
+      spine.setAttribute('stroke-dasharray', '10 10');
+      svg.appendChild(spine);
+
+      types.forEach((type, idx) => {
+        const phase = (idx / Math.max(1, types.length)) * Math.PI * 2;
+        laneMeta[type] = { phase };
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.dataset.type = type;
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 18);
+        label.setAttribute('y', 50 + idx * 22);
+        label.setAttribute('fill', '#e5e7eb');
+        label.setAttribute('font-size', '14');
+        label.setAttribute('font-weight', '600');
+        label.textContent = type;
+        group.appendChild(label);
+
+        const points = [];
+        for (let x = leftPad; x <= timelineWidth - rightPad; x += 12) {
+          const theta = ((x - leftPad) / helixPitch) + phase + rotationOffset;
+          const y = centerY + Math.sin(theta) * corkRadius;
+          points.push(`${x},${y}`);
+        }
+
+        const glow = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        glow.setAttribute('points', points.join(' '));
+        glow.setAttribute('fill', 'none');
+        glow.setAttribute('stroke', colorByType[type]);
+        glow.setAttribute('stroke-width', '14');
+        glow.setAttribute('stroke-linecap', 'round');
+        glow.setAttribute('stroke-linejoin', 'round');
+        glow.setAttribute('opacity', '0.08');
+        group.appendChild(glow);
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        line.setAttribute('points', points.join(' '));
+        line.setAttribute('fill', 'none');
+        line.setAttribute('stroke', colorByType[type]);
+        line.setAttribute('stroke-width', '4');
+        line.setAttribute('stroke-linecap', 'round');
+        line.setAttribute('stroke-linejoin', 'round');
+        line.setAttribute('opacity', '0.45');
+        group.appendChild(line);
+
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        hit.setAttribute('points', points.join(' '));
+        hit.setAttribute('fill', 'none');
+        hit.setAttribute('stroke', 'transparent');
+        hit.setAttribute('stroke-width', '26');
+        hit.setAttribute('stroke-linecap', 'round');
+        hit.setAttribute('stroke-linejoin', 'round');
+        hit.style.pointerEvents = 'stroke';
+        hit.addEventListener('mouseenter', () => {
+          pauseRotation = true;
+          line.setAttribute('opacity', '1');
+          line.setAttribute('stroke-width', '6');
+          glow.setAttribute('opacity', '0.18');
+        });
+        hit.addEventListener('mouseleave', () => {
+          pauseRotation = false;
+          line.setAttribute('opacity', '0.45');
+          line.setAttribute('stroke-width', '4');
+          glow.setAttribute('opacity', '0.08');
+        });
+        group.appendChild(hit);
+
+        svg.appendChild(group);
+      });
+
+      const maxDuration = Math.max(...activities.map(a => a.moving_time || a.elapsed_time || 0), 1);
+
+      activities.forEach(activity => {
+        const type = activity.sport_type || activity.type || 'Other';
+        const x = leftPad + ((new Date(activity.start_date) - firstDate) / 86400000) * dayScale;
+        const meta = laneMeta[type];
+        const theta = ((x - leftPad) / helixPitch) + meta.phase + rotationOffset;
+        const y = centerY + Math.sin(theta) * corkRadius;
+        const depth = (Math.cos(theta) + 1) / 2;
+        const duration = activity.moving_time || activity.elapsed_time || 0;
+        const radius = (4 + (duration / maxDuration) * 16) * (0.7 + depth * 0.45);
+
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', x);
+        dot.setAttribute('cy', y);
+        dot.setAttribute('r', radius);
+        dot.setAttribute('fill', colorByType[type]);
+        dot.setAttribute('fill-opacity', 0.5 + depth * 0.45);
+        dot.setAttribute('stroke', '#020617');
+        dot.setAttribute('stroke-width', 1 + depth * 2);
+        dot.style.cursor = 'pointer';
+        dot.addEventListener('mouseenter', e => showTooltip(e, activity));
+        dot.addEventListener('mousemove', e => tooltipPosition(e));
+        dot.addEventListener('mouseleave', hideTooltip);
+        svg.appendChild(dot);
+
+        if (activity.hasPhoto) {
+          const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          icon.setAttribute('x', x - 6);
+          icon.setAttribute('y', y + 5);
+          icon.setAttribute('font-size', Math.max(10, radius * 0.9));
+          icon.textContent = '📷';
+          icon.style.pointerEvents = 'none';
+          svg.appendChild(icon);
+        }
+      });
+
+      applyZoom({ preserveViewportCenter: hasInitialPosition });
+      if (!hasInitialPosition) {
+        centerLatestActivity(timelineWidth, centerY);
+        hasInitialPosition = true;
+      }
+    }
+
+    rotationSlider.addEventListener('input', () => {
+      rotationSpeed = Number(rotationSlider.value || 0);
+    });
+
+    zoomSlider.addEventListener('input', () => {
+      currentZoom = Number(zoomSlider.value || 100) / 100;
+      applyZoom({ preserveViewportCenter: true });
+    });
+
+    function animate(timestamp) {
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      const delta = (timestamp - lastFrameTime) / 1000;
+      lastFrameTime = timestamp;
+      if (!pauseRotation && cachedActivities.length) {
+        currentRotation += rotationSpeed * delta;
+        render(cachedActivities);
+      }
+      animationHandle = requestAnimationFrame(animate);
+    }
+
+    async function init() {
+      try {
+        const activities = await fetchActivities();
+        render(activities);
+        if (!animationHandle) animationHandle = requestAnimationFrame(animate);
+      } catch (err) {
+        console.error(err);
+        svg.innerHTML = `<text x="20" y="40" fill="#fff">${String(err.message || err)}</text>`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

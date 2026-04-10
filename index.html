@@ -207,7 +207,20 @@
     const legendEl = document.getElementById('legend');
     const rotationSlider = document.getElementById('rotationSlider');
     const zoomSlider = document.getElementById('zoomSlider');
-    const colors = ['#1F70C1','#00A6A0','#8A3FFC','#FA4D56','#FF832B','#198038','#6929C4','#1192E8','#EE538B','#B28600'];
+    const colors = [
+      '#D57A66', // clay coral
+      '#6B8E74', // eucalyptus
+      '#E0A458', // ochre
+      '#5F7C8A', // blue-gray
+      '#B5523B', // burnt sienna
+      '#8C6F56', // walnut
+      '#C7A27C', // tan leather
+      '#556B2F', // olive
+      '#A65A52', // dusty brick
+      '#7B8F8A', // sea glass
+      '#C08A3E', // mustard brass
+      '#4E5D6C'  // slate steel
+    ];
 
     function formatDate(dateStr) {
       return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -479,9 +492,54 @@
       rotationSpeed = Number(rotationSlider.value || 0);
     });
 
+    function setZoom(nextZoom, { preserveViewportCenter = true } = {}) {
+      currentZoom = Math.max(0.6, Math.min(2.2, nextZoom));
+      zoomSlider.value = String(Math.round(currentZoom * 100));
+      applyZoom({ preserveViewportCenter });
+    }
+
     zoomSlider.addEventListener('input', () => {
-      currentZoom = Number(zoomSlider.value || 100) / 100;
-      applyZoom({ preserveViewportCenter: true });
+      setZoom(Number(zoomSlider.value || 100) / 100, { preserveViewportCenter: true });
+    });
+
+    scroller.addEventListener('wheel', event => {
+      if (!cachedActivities.length) return;
+      if (!event.ctrlKey && Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      const intensity = event.ctrlKey ? 0.0025 : 0.0012;
+      const factor = Math.exp(-event.deltaY * intensity);
+      setZoom(currentZoom * factor, { preserveViewportCenter: true });
+    }, { passive: false });
+
+    let pinchState = null;
+
+    function touchDistance(t1, t2) {
+      return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    }
+
+    scroller.addEventListener('touchstart', event => {
+      if (event.touches.length === 2) {
+        pinchState = {
+          distance: touchDistance(event.touches[0], event.touches[1]),
+          zoom: currentZoom
+        };
+      }
+    }, { passive: true });
+
+    scroller.addEventListener('touchmove', event => {
+      if (event.touches.length !== 2 || !pinchState) return;
+      event.preventDefault();
+      const distance = touchDistance(event.touches[0], event.touches[1]);
+      const ratio = distance / Math.max(1, pinchState.distance);
+      setZoom(pinchState.zoom * ratio, { preserveViewportCenter: true });
+    }, { passive: false });
+
+    scroller.addEventListener('touchend', event => {
+      if (event.touches.length < 2) pinchState = null;
+    });
+
+    scroller.addEventListener('touchcancel', () => {
+      pinchState = null;
     });
 
     function animate(timestamp) {

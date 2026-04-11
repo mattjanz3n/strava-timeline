@@ -348,24 +348,14 @@
       const rotationOffset = currentRotation * Math.PI / 180;
       const laneMeta = {};
 
-      const spineGlow = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      spineGlow.setAttribute('x', leftPad);
-      spineGlow.setAttribute('y', centerY - corkRadius * 0.62);
-      spineGlow.setAttribute('width', timelineWidth - leftPad - rightPad);
-      spineGlow.setAttribute('height', corkRadius * 1.24);
-      spineGlow.setAttribute('rx', corkRadius * 0.62);
-      spineGlow.setAttribute('fill', 'rgba(255,255,255,0.05)');
-      svg.appendChild(spineGlow);
-
-      const spine = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      spine.setAttribute('x', leftPad);
-      spine.setAttribute('y', centerY - corkRadius * 0.42);
-      spine.setAttribute('width', timelineWidth - leftPad - rightPad);
-      spine.setAttribute('height', corkRadius * 0.84);
-      spine.setAttribute('rx', corkRadius * 0.42);
-      spine.setAttribute('fill', 'rgba(255,255,255,0.12)');
-      spine.setAttribute('stroke', 'rgba(255,255,255,0.14)');
-      spine.setAttribute('stroke-width', '1.5');
+      const spine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      spine.setAttribute('x1', leftPad);
+      spine.setAttribute('x2', timelineWidth - rightPad);
+      spine.setAttribute('y1', centerY);
+      spine.setAttribute('y2', centerY);
+      spine.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+      spine.setAttribute('stroke-width', '2');
+      spine.setAttribute('stroke-dasharray', '10 10');
       svg.appendChild(spine);
 
       types.forEach((type, idx) => {
@@ -383,50 +373,31 @@
         label.textContent = type;
         group.appendChild(label);
 
-        const backPoints = [];
-        const frontPoints = [];
-        let lastWasFront = null;
+        const points = [];
         for (let x = leftPad; x <= timelineWidth - rightPad; x += 12) {
           const theta = ((x - leftPad) / helixPitch) + phase + rotationOffset;
           const y = centerY + Math.sin(theta) * corkRadius;
-          const isFront = Math.cos(theta) >= 0;
-          const target = isFront ? frontPoints : backPoints;
-          const other = isFront ? backPoints : frontPoints;
-          if (lastWasFront !== null && lastWasFront !== isFront) {
-            target.push(`M ${x} ${y}`);
-          } else if (!target.length) {
-            target.push(`M ${x} ${y}`);
-          } else {
-            target.push(`L ${x} ${y}`);
-          }
-          lastWasFront = isFront;
+          points.push(`${x},${y}`);
         }
 
-        const backLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        backLine.setAttribute('d', backPoints.join(' '));
-        backLine.setAttribute('fill', 'none');
-        backLine.setAttribute('stroke', colorByType[type]);
-        backLine.setAttribute('stroke-width', '2.5');
-        backLine.setAttribute('stroke-linecap', 'round');
-        backLine.setAttribute('opacity', '0.18');
-        group.appendChild(backLine);
+        const glow = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        glow.setAttribute('points', points.join(' '));
+        glow.setAttribute('fill', 'none');
+        glow.setAttribute('stroke', colorByType[type]);
+        glow.setAttribute('stroke-width', '14');
+        glow.setAttribute('stroke-linecap', 'round');
+        glow.setAttribute('stroke-linejoin', 'round');
+        glow.setAttribute('opacity', '0.08');
+        group.appendChild(glow);
 
-        const frontGlow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        frontGlow.setAttribute('d', frontPoints.join(' '));
-        frontGlow.setAttribute('fill', 'none');
-        frontGlow.setAttribute('stroke', colorByType[type]);
-        frontGlow.setAttribute('stroke-width', '18');
-        frontGlow.setAttribute('stroke-linecap', 'round');
-        frontGlow.setAttribute('opacity', '0.12');
-        group.appendChild(frontGlow);
-
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        line.setAttribute('d', frontPoints.join(' '));
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        line.setAttribute('points', points.join(' '));
         line.setAttribute('fill', 'none');
         line.setAttribute('stroke', colorByType[type]);
-        line.setAttribute('stroke-width', '6');
+        line.setAttribute('stroke-width', '4');
         line.setAttribute('stroke-linecap', 'round');
-        line.setAttribute('opacity', '0.82');
+        line.setAttribute('stroke-linejoin', 'round');
+        line.setAttribute('opacity', '0.45');
         group.appendChild(line);
 
         const hit = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -441,15 +412,13 @@
           pauseRotation = true;
           line.setAttribute('opacity', '1');
           line.setAttribute('stroke-width', '6');
-          frontGlow.setAttribute('opacity', '0.22');
-          backLine.setAttribute('opacity', '0.28');
+          glow.setAttribute('opacity', '0.18');
         });
         hit.addEventListener('mouseleave', () => {
           pauseRotation = false;
-          line.setAttribute('opacity', '0.82');
-          line.setAttribute('stroke-width', '6');
-          frontGlow.setAttribute('opacity', '0.12');
-          backLine.setAttribute('opacity', '0.18');
+          line.setAttribute('opacity', '0.45');
+          line.setAttribute('stroke-width', '4');
+          glow.setAttribute('opacity', '0.08');
         });
         group.appendChild(hit);
 
@@ -473,9 +442,9 @@
         dot.setAttribute('cy', y);
         dot.setAttribute('r', radius);
         dot.setAttribute('fill', colorByType[type]);
-        dot.setAttribute('fill-opacity', 0.25 + depth * 0.7);
+        dot.setAttribute('fill-opacity', 0.5 + depth * 0.45);
         dot.setAttribute('stroke', '#020617');
-        dot.setAttribute('stroke-width', 0.5 + depth * 2.5);
+        dot.setAttribute('stroke-width', 1 + depth * 2);
         dot.style.cursor = 'pointer';
         dot.addEventListener('mouseenter', e => { pauseRotation = true; showTooltip(e, activity); });
         dot.addEventListener('mousemove', e => tooltipPosition(e));

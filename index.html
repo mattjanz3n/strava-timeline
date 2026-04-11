@@ -176,8 +176,7 @@
       <div class="pill">Hover a line to highlight it</div>
       <div class="pill">Scroll sideways to time travel</div>
       <label class="pill">Rotation speed <input id="rotationSlider" type="range" min="-30" max="30" value="4" style="width:140px; vertical-align:middle; margin-left:8px;"></label>
-      <label class="pill">Zoom <input id="zoomSlider" type="range" min="60" max="220" value="100" style="width:140px; vertical-align:middle; margin-left:8px;"></label>
-    </div>
+          </div>
   </header>
 
   <div class="app">
@@ -206,7 +205,6 @@
     const tooltip = document.getElementById('tooltip');
     const legendEl = document.getElementById('legend');
     const rotationSlider = document.getElementById('rotationSlider');
-    const zoomSlider = document.getElementById('zoomSlider');
     const colors = [
       '#D57A66', // clay coral
       '#6B8E74', // eucalyptus
@@ -262,7 +260,6 @@
 
     let cachedActivities = [];
     let currentRotation = 0;
-    let currentZoom = 1;
     let rotationSpeed = 4;
     let animationHandle = null;
     let lastFrameTime = 0;
@@ -275,25 +272,9 @@
       scroller.scrollTop = Math.max(0, Math.min(scroller.scrollTop, scroller.scrollHeight - scroller.clientHeight));
     }
 
-    function applyZoom({ preserveViewportCenter = true } = {}) {
-      const oldZoom = Number(svg.dataset.zoom || 1);
-      const centerX = (scroller.scrollLeft + scroller.clientWidth / 2 + helixOrigin.x * (oldZoom - 1)) / oldZoom;
-      const centerY = (scroller.scrollTop + scroller.clientHeight / 2 + helixOrigin.y * (oldZoom - 1)) / oldZoom;
-
-      svg.style.transformOrigin = `${helixOrigin.x}px ${helixOrigin.y}px`;
-      svg.style.transform = `translate(${-helixOrigin.x * (currentZoom - 1)}px, ${-helixOrigin.y * (currentZoom - 1)}px) scale(${currentZoom})`;
-      svg.dataset.zoom = String(currentZoom);
-
-      if (preserveViewportCenter) {
-        scroller.scrollLeft = centerX * currentZoom - helixOrigin.x * (currentZoom - 1) - scroller.clientWidth / 2;
-        scroller.scrollTop = centerY * currentZoom - helixOrigin.y * (currentZoom - 1) - scroller.clientHeight / 2;
-        clampScroll();
-      }
-    }
-
     function centerLatestActivity(timelineWidth, centerY) {
       scroller.scrollLeft = Math.max(0, timelineWidth - scroller.clientWidth * 0.55);
-      scroller.scrollTop = Math.max(0, centerY * currentZoom - helixOrigin.y * (currentZoom - 1) - scroller.clientHeight / 2);
+      scroller.scrollTop = Math.max(0, centerY - scroller.clientHeight / 2);
       clampScroll();
     }
 
@@ -481,7 +462,6 @@
         }
       });
 
-      applyZoom({ preserveViewportCenter: hasInitialPosition });
       if (!hasInitialPosition) {
         centerLatestActivity(timelineWidth, centerY);
         hasInitialPosition = true;
@@ -492,55 +472,6 @@
       rotationSpeed = Number(rotationSlider.value || 0);
     });
 
-    function setZoom(nextZoom, { preserveViewportCenter = true } = {}) {
-      currentZoom = Math.max(0.6, Math.min(2.2, nextZoom));
-      zoomSlider.value = String(Math.round(currentZoom * 100));
-      applyZoom({ preserveViewportCenter });
-    }
-
-    zoomSlider.addEventListener('input', () => {
-      setZoom(Number(zoomSlider.value || 100) / 100, { preserveViewportCenter: true });
-    });
-
-    scroller.addEventListener('wheel', event => {
-      if (!cachedActivities.length) return;
-      if (!event.ctrlKey && Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      const intensity = event.ctrlKey ? 0.0025 : 0.0012;
-      const factor = Math.exp(-event.deltaY * intensity);
-      setZoom(currentZoom * factor, { preserveViewportCenter: true });
-    }, { passive: false });
-
-    let pinchState = null;
-
-    function touchDistance(t1, t2) {
-      return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-    }
-
-    scroller.addEventListener('touchstart', event => {
-      if (event.touches.length === 2) {
-        pinchState = {
-          distance: touchDistance(event.touches[0], event.touches[1]),
-          zoom: currentZoom
-        };
-      }
-    }, { passive: true });
-
-    scroller.addEventListener('touchmove', event => {
-      if (event.touches.length !== 2 || !pinchState) return;
-      event.preventDefault();
-      const distance = touchDistance(event.touches[0], event.touches[1]);
-      const ratio = distance / Math.max(1, pinchState.distance);
-      setZoom(pinchState.zoom * ratio, { preserveViewportCenter: true });
-    }, { passive: false });
-
-    scroller.addEventListener('touchend', event => {
-      if (event.touches.length < 2) pinchState = null;
-    });
-
-    scroller.addEventListener('touchcancel', () => {
-      pinchState = null;
-    });
 
     function animate(timestamp) {
       if (!lastFrameTime) lastFrameTime = timestamp;

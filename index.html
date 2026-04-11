@@ -434,12 +434,14 @@
           line.setAttribute('opacity', '1');
           line.setAttribute('stroke-width', '6');
           glow.setAttribute('opacity', '0.18');
+          document.querySelectorAll('.legend-item').forEach(el => el.classList.toggle('active', el.dataset.type === type));
         });
         hit.addEventListener('mouseleave', () => {
           pauseRotation = false;
           line.setAttribute('opacity', '0.45');
           line.setAttribute('stroke-width', '4');
           glow.setAttribute('opacity', '0.05');
+          document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('active'));
         });
         group.appendChild(hit);
 

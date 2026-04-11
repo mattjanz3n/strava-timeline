@@ -465,9 +465,9 @@
         dot.setAttribute('stroke', '#020617');
         dot.setAttribute('stroke-width', 1 + depth * 2);
         dot.style.cursor = 'pointer';
-        dot.addEventListener('mouseenter', e => showTooltip(e, activity));
+        dot.addEventListener('mouseenter', e => { pauseRotation = true; showTooltip(e, activity); });
         dot.addEventListener('mousemove', e => tooltipPosition(e));
-        dot.addEventListener('mouseleave', hideTooltip);
+        dot.addEventListener('mouseleave', () => { pauseRotation = false; hideTooltip(); });
         svg.appendChild(dot);
 
         if (activity.hasPhoto) {

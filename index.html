@@ -348,12 +348,22 @@
       const rotationOffset = currentRotation * Math.PI / 180;
       const laneMeta = {};
 
+      const tube = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      tube.setAttribute('cx', leftPad + (timelineWidth - leftPad - rightPad) / 2);
+      tube.setAttribute('cy', centerY);
+      tube.setAttribute('rx', (timelineWidth - leftPad - rightPad) / 2);
+      tube.setAttribute('ry', Math.max(22, corkRadius * 0.38));
+      tube.setAttribute('fill', 'rgba(255,255,255,0.035)');
+      tube.setAttribute('stroke', 'rgba(255,255,255,0.07)');
+      tube.setAttribute('stroke-width', '1');
+      svg.appendChild(tube);
+
       const spine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       spine.setAttribute('x1', leftPad);
       spine.setAttribute('x2', timelineWidth - rightPad);
       spine.setAttribute('y1', centerY);
       spine.setAttribute('y2', centerY);
-      spine.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+      spine.setAttribute('stroke', 'rgba(255,255,255,0.16)');
       spine.setAttribute('stroke-width', '2');
       spine.setAttribute('stroke-dasharray', '10 10');
       svg.appendChild(spine);
@@ -384,20 +394,31 @@
         glow.setAttribute('points', points.join(' '));
         glow.setAttribute('fill', 'none');
         glow.setAttribute('stroke', colorByType[type]);
-        glow.setAttribute('stroke-width', '14');
+        glow.setAttribute('stroke-width', '18');
         glow.setAttribute('stroke-linecap', 'round');
         glow.setAttribute('stroke-linejoin', 'round');
-        glow.setAttribute('opacity', '0.08');
+        glow.setAttribute('opacity', '0.05');
         group.appendChild(glow);
+
+        const backShadow = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        backShadow.setAttribute('points', points.join(' '));
+        backShadow.setAttribute('fill', 'none');
+        backShadow.setAttribute('stroke', 'rgba(0,0,0,0.28)');
+        backShadow.setAttribute('stroke-width', '6');
+        backShadow.setAttribute('stroke-linecap', 'round');
+        backShadow.setAttribute('stroke-linejoin', 'round');
+        backShadow.setAttribute('transform', 'translate(0, 5)');
+        backShadow.setAttribute('opacity', '0.16');
+        group.appendChild(backShadow);
 
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
         line.setAttribute('points', points.join(' '));
         line.setAttribute('fill', 'none');
         line.setAttribute('stroke', colorByType[type]);
-        line.setAttribute('stroke-width', '4');
+        line.setAttribute('stroke-width', '5');
         line.setAttribute('stroke-linecap', 'round');
         line.setAttribute('stroke-linejoin', 'round');
-        line.setAttribute('opacity', '0.45');
+        line.setAttribute('opacity', '0.62');
         group.appendChild(line);
 
         const hit = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -418,7 +439,7 @@
           pauseRotation = false;
           line.setAttribute('opacity', '0.45');
           line.setAttribute('stroke-width', '4');
-          glow.setAttribute('opacity', '0.08');
+          glow.setAttribute('opacity', '0.05');
         });
         group.appendChild(hit);
 
@@ -442,9 +463,10 @@
         dot.setAttribute('cy', y);
         dot.setAttribute('r', radius);
         dot.setAttribute('fill', colorByType[type]);
-        dot.setAttribute('fill-opacity', 0.5 + depth * 0.45);
+        dot.setAttribute('fill-opacity', 0.35 + depth * 0.55);
         dot.setAttribute('stroke', '#020617');
-        dot.setAttribute('stroke-width', 1 + depth * 2);
+        dot.setAttribute('stroke-width', 0.75 + depth * 2.25);
+        dot.setAttribute('filter', depth > 0.55 ? 'drop-shadow(0 6px 8px rgba(0,0,0,0.28))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.14))');
         dot.style.cursor = 'pointer';
         dot.addEventListener('mouseenter', e => { pauseRotation = true; showTooltip(e, activity); });
         dot.addEventListener('mousemove', e => tooltipPosition(e));

@@ -308,7 +308,7 @@
       document.getElementById('firstDate').textContent = formatDate(activities[0].start_date);
 
       legendEl.innerHTML = types.map(type => `
-        <div class="legend-item"><span class="swatch" style="background:${colorByType[type]}; color:${colorByType[type]}"></span>${type}</div>
+        <div class="legend-item" data-type="${type}"><span class="swatch" style="background:${colorByType[type]}; color:${colorByType[type]}"></span>${type}</div>
       `).join('');
 
       const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');

@@ -10,3 +10,10 @@ __pycache__/
 
 # Local scratch
 *.log
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
